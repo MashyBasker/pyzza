@@ -222,3 +222,126 @@ pub const VM = struct {
         }
     }
 };
+
+const testing = std.testing;
+const Tokenizer = @import("../lexer/tokenizer.zig").Tokenizer;
+const Parser = @import("../parser/parser.zig").Parser;
+const Compiler = @import("compiler.zig").Compiler;
+
+/// Tokenizes, parses, compiles, and runs `src`, returning the captured
+/// `print` output. Caller owns the returned slice.
+fn runAndCapture(gpa: std.mem.Allocator, src: []const u8) ![]u8 {
+    const toks = try Tokenizer.tokenize(gpa, src);
+    defer gpa.free(toks);
+
+    var p = Parser.init(gpa, toks);
+    defer p.deinit();
+    const program = try p.parseProgram();
+
+    var c = Compiler.init(gpa);
+    defer c.deinit();
+    const code = try c.compile(program);
+
+    var machine = VM.init(gpa);
+    defer machine.deinit();
+
+    var aw: std.Io.Writer.Allocating = .init(gpa);
+    defer aw.deinit();
+
+    try machine.run(code, &aw.writer);
+    return gpa.dupe(u8, aw.written());
+}
+
+test "print arithmetic" {
+    const gpa = testing.allocator;
+    const out = try runAndCapture(gpa, "print(1 + 2, 3 * 4)\n");
+    defer gpa.free(out);
+    try testing.expectEqualStrings("3 12\n", out);
+}
+
+test "if elif else picks the right branch" {
+    const gpa = testing.allocator;
+    const src =
+        \\x = 5
+        \\if x < 1:
+        \\    print("a")
+        \\elif x == 5:
+        \\    print("b")
+        \\else:
+        \\    print("c")
+        \\
+    ;
+    const out = try runAndCapture(gpa, src);
+    defer gpa.free(out);
+    try testing.expectEqualStrings("b\n", out);
+}
+
+test "for loop over a list" {
+    const gpa = testing.allocator;
+    const out = try runAndCapture(gpa, "for i in [1, 2, 3]:\n    print(i)\n");
+    defer gpa.free(out);
+    try testing.expectEqualStrings("1\n2\n3\n", out);
+}
+
+test "while loop" {
+    const gpa = testing.allocator;
+    const src = "x = 0\nwhile x < 3:\n    print(x)\n    x = x + 1\n";
+    const out = try runAndCapture(gpa, src);
+    defer gpa.free(out);
+    try testing.expectEqualStrings("0\n1\n2\n", out);
+}
+
+test "break exits a for loop early" {
+    const gpa = testing.allocator;
+    const src = "for i in [1, 2, 3, 4]:\n    if i == 3:\n        break\n    print(i)\n";
+    const out = try runAndCapture(gpa, src);
+    defer gpa.free(out);
+    try testing.expectEqualStrings("1\n2\n", out);
+}
+
+test "continue skips an iteration in a for loop" {
+    const gpa = testing.allocator;
+    const src = "for i in [1, 2, 3, 4]:\n    if i == 2:\n        continue\n    print(i)\n";
+    const out = try runAndCapture(gpa, src);
+    defer gpa.free(out);
+    try testing.expectEqualStrings("1\n3\n4\n", out);
+}
+
+test "break only exits the innermost loop" {
+    const gpa = testing.allocator;
+    const src =
+        \\for i in [1, 2]:
+        \\    for j in [1, 2, 3]:
+        \\        if j == 2:
+        \\            break
+        \\        print(i, j)
+        \\
+    ;
+    const out = try runAndCapture(gpa, src);
+    defer gpa.free(out);
+    try testing.expectEqualStrings("1 1\n2 1\n", out);
+}
+
+test "break in a while loop leaves no stray stack value" {
+    const gpa = testing.allocator;
+    const src =
+        \\x = 0
+        \\while x < 10:
+        \\    x = x + 1
+        \\    if x == 3:
+        \\        break
+        \\print(x)
+        \\
+    ;
+    const out = try runAndCapture(gpa, src);
+    defer gpa.free(out);
+    try testing.expectEqualStrings("3\n", out);
+}
+
+test "string concatenation and comparison" {
+    const gpa = testing.allocator;
+    const src = "a = \"foo\" + \"bar\"\nprint(a, a == \"foobar\")\n";
+    const out = try runAndCapture(gpa, src);
+    defer gpa.free(out);
+    try testing.expectEqualStrings("foobar True\n", out);
+}

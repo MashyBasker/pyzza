@@ -375,3 +375,35 @@ test "while loop" {
         try testing.expectEqual(e, toks[i].type);
     }
 }
+
+test "break statement" {
+    const src = "if d > 0:\n    break\n";
+    const toks = try Tokenizer.tokenize(testing.allocator, src);
+    defer testing.allocator.free(toks);
+
+    const expected = [_]TokenType{
+        .kw_if,  .name,     .greater, .number, .colon, .newline,
+        .indent, .kw_break, .newline, .dedent, .eof,
+    };
+
+    try testing.expectEqual(expected.len, toks.len);
+    for (expected, 0..) |e, i| {
+        try testing.expectEqual(e, toks[i].type);
+    }
+}
+
+test "continue statement" {
+    const src = "if d > 0:\n    continue\n";
+    const toks = try Tokenizer.tokenize(testing.allocator, src);
+    defer testing.allocator.free(toks);
+
+    const expected = [_]TokenType{
+        .kw_if,  .name,        .greater, .number, .colon, .newline,
+        .indent, .kw_continue, .newline, .dedent, .eof,
+    };
+
+    try testing.expectEqual(expected.len, toks.len);
+    for (expected, 0..) |e, i| {
+        try testing.expectEqual(e, toks[i].type);
+    }
+}

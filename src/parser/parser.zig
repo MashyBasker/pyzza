@@ -85,6 +85,8 @@ pub const Parser = struct {
             .kw_for => self.parseFor(),
             .kw_while => self.parseWhile(),
             .kw_print => self.parsePrint(),
+            .kw_break => self.parseBreak(),
+            .kw_continue => self.parseContinue(),
             .name => self.parseAssign(),
             else => ParseError.UnexpectedToken,
         };
@@ -173,6 +175,18 @@ pub const Parser = struct {
         _ = try self.expect(.colon);
         const body = try self.parseBlock();
         return self.newStmt(.{ .for_stmt = .{ .target = name_tok.lexeme, .iter = iter, .body = body } });
+    }
+
+    fn parseBreak(self: *Parser) ParseError!*Stmt {
+        _ = try self.expect(.kw_break);
+        _ = try self.expect(.newline);
+        return self.newStmt(.break_stmt);
+    }
+
+    fn parseContinue(self: *Parser) ParseError!*Stmt {
+        _ = try self.expect(.kw_continue);
+        _ = try self.expect(.newline);
+        return self.newStmt(.continue_stmt);
     }
 
     // ---- expressions ----
@@ -350,6 +364,37 @@ test "parse if elif else" {
     try testing.expect(stmt.* == .if_stmt);
     try testing.expectEqual(@as(usize, 2), stmt.if_stmt.branches.len);
     try testing.expect(stmt.if_stmt.else_body != null);
+}
+
+test "parse while loop" {
+    const gpa = testing.allocator;
+    const src = "while x < 10:\n    print(x)\n    x = x + 1\n";
+    const toks = try Tokenizer.tokenize(gpa, src);
+    defer gpa.free(toks);
+    var p = Parser.init(gpa, toks);
+    defer p.deinit();
+    const program = try p.parseProgram();
+
+    try testing.expectEqual(@as(usize, 1), program.body.len);
+    const stmt = program.body[0];
+    try testing.expect(stmt.* == .while_stmt);
+    try testing.expect(stmt.while_stmt.cond.* == .binary);
+    try testing.expectEqual(@as(usize, 2), stmt.while_stmt.body.len);
+}
+
+test "parse break and continue" {
+    const gpa = testing.allocator;
+    const src = "while x < 10:\n    break\n    continue\n";
+    const toks = try Tokenizer.tokenize(gpa, src);
+    defer gpa.free(toks);
+    var p = Parser.init(gpa, toks);
+    defer p.deinit();
+    const program = try p.parseProgram();
+
+    const body = program.body[0].while_stmt.body;
+    try testing.expectEqual(@as(usize, 2), body.len);
+    try testing.expect(body[0].* == .break_stmt);
+    try testing.expect(body[1].* == .continue_stmt);
 }
 
 test "parse for loop over list" {

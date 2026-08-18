@@ -14,6 +14,8 @@ pub const TokenType = enum {
     kw_elif,
     kw_else,
     kw_in,
+    kw_break,
+    kw_continue,
 
     // operators
     plus, // +
@@ -52,6 +54,8 @@ pub const keywords = std.StaticStringMap(TokenType).initComptime(.{
     .{ "elif", .kw_elif },
     .{ "else", .kw_else },
     .{ "in", .kw_in },
+    .{ "break", .kw_break },
+    .{ "continue", .kw_continue },
 });
 
 pub const Token = struct {
