@@ -26,24 +26,22 @@ pub const Branch = struct {
     body: []*Stmt,
 };
 
-pub const Stmt = union(enum) {
-    assign: struct {
-        target: []const u8,
-        value: *Expr,
-    },
-    print: struct {
-        args: []*Expr,
-    },
-    if_stmt: struct {
-        branches: []Branch,
-        else_body: ?[]*Stmt,
-    },
-    for_stmt: struct {
-        target: []const u8,
-        iter: *Expr,
-        body: []*Stmt,
-    },
-};
+pub const Stmt = union(enum) { assign: struct {
+    target: []const u8,
+    value: *Expr,
+}, print: struct {
+    args: []*Expr,
+}, if_stmt: struct {
+    branches: []Branch,
+    else_body: ?[]*Stmt,
+}, for_stmt: struct {
+    target: []const u8,
+    iter: *Expr,
+    body: []*Stmt,
+}, while_stmt: struct {
+    cond: *Expr,
+    body: []*Stmt,
+} };
 
 pub const Program = struct {
     body: []*Stmt,

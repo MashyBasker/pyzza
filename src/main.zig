@@ -95,7 +95,7 @@ fn runFixtureTests(init: std.process.Init, allocator: std.mem.Allocator, dir_pat
         defer machine.deinit();
 
         var stdout_buf: [4096]u8 = undefined;
-        var stdout_writer = std.Io.File.stdout().writer(io,&stdout_buf);
+        var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buf);
         const w = &stdout_writer.interface;
 
         std.debug.print("-- {s} --\n", .{entry.name});

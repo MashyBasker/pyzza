@@ -83,6 +83,7 @@ pub const Parser = struct {
         return switch (self.peek().type) {
             .kw_if => self.parseIf(),
             .kw_for => self.parseFor(),
+            .kw_while => self.parseWhile(),
             .kw_print => self.parsePrint(),
             .name => self.parseAssign(),
             else => ParseError.UnexpectedToken,
@@ -149,6 +150,18 @@ pub const Parser = struct {
         return self.newStmt(.{ .if_stmt = .{
             .branches = try branches.toOwnedSlice(self.allocator()),
             .else_body = else_body,
+        } });
+    }
+
+    fn parseWhile(self: *Parser) ParseError!*Stmt {
+        _ = try self.expect(.kw_while);
+        const cond_expr = try self.parseExpr();
+        _ = try self.expect(.colon);
+        const body = try self.parseBlock();
+
+        return self.newStmt(.{ .while_stmt = .{
+            .cond = cond_expr,
+            .body = body,
         } });
     }
 

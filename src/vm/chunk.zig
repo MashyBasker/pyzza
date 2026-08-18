@@ -45,6 +45,7 @@ pub const Instruction = union(enum) {
     /// (net effect: stack gains one value) and fall through. If exhausted,
     /// pop the iterator and jump to the absolute instruction index.
     for_iter: u32,
+    while_iter: u32,
 };
 
 pub const Chunk = struct {

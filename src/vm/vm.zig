@@ -85,6 +85,10 @@ pub const VM = struct {
                 },
                 .get_iter => try self.getIter(),
                 .for_iter => |target| try self.forIter(target, &ip),
+                .while_iter => |target| {
+                    const v = self.pop();
+                    if (!v.isTruthy()) ip = target;
+                },
             }
         }
     }

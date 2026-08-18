@@ -47,6 +47,7 @@ pub const Compiler = struct {
             .jump => self.code.items[idx] = .{ .jump = here },
             .jump_if_false => self.code.items[idx] = .{ .jump_if_false = here },
             .for_iter => self.code.items[idx] = .{ .for_iter = here },
+            .while_iter => self.code.items[idx] = .{ .while_iter = here },
             else => unreachable,
         }
     }
@@ -63,6 +64,7 @@ pub const Compiler = struct {
             },
             .if_stmt => |s| try self.compileIf(allocator, s),
             .for_stmt => |s| try self.compileFor(allocator, s),
+            .while_stmt => |s| try self.compileWhile(allocator, s),
         }
     }
 
@@ -100,6 +102,17 @@ pub const Compiler = struct {
         try self.emit(allocator, .{ .jump = loop_start });
 
         self.patchJumpToHere(for_iter_idx);
+    }
+
+    fn compileWhile(self: *Compiler, allocator: std.mem.Allocator, s: anytype) CompileError!void {
+        const loop_start: u32 = @intCast(self.code.items.len);
+        try self.compileExpr(allocator, s.cond);
+        const exit_idx = try self.emitJump(allocator, .{ .while_iter = 0 });
+
+        for (s.body) |body_stmt| try self.compileStmt(allocator, body_stmt);
+        try self.emit(allocator, .{ .jump = loop_start });
+
+        self.patchJumpToHere(exit_idx);
     }
 
     fn compileExpr(self: *Compiler, allocator: std.mem.Allocator, expr: *ast.Expr) CompileError!void {

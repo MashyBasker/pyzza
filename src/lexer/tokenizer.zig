@@ -308,9 +308,9 @@ test "assignment and print" {
     defer testing.allocator.free(toks);
 
     const expected = [_]TokenType{
-        .name, .equal, .number, .newline,
-        .kw_print, .lparen, .name, .rparen, .newline,
-        .eof,
+        .name,     .equal,  .number, .newline,
+        .kw_print, .lparen, .name,   .rparen,
+        .newline,  .eof,
     };
     try testing.expectEqual(expected.len, toks.len);
     for (expected, 0..) |e, i| {
@@ -348,9 +348,27 @@ test "for loop" {
     defer testing.allocator.free(toks);
 
     const expected = [_]TokenType{
-        .kw_for, .name, .kw_in, .name, .colon, .newline,
+        .kw_for, .name,     .kw_in,  .name, .colon,  .newline,
         .indent, .kw_print, .lparen, .name, .rparen, .newline,
         .dedent, .eof,
+    };
+    try testing.expectEqual(expected.len, toks.len);
+    for (expected, 0..) |e, i| {
+        try testing.expectEqual(e, toks[i].type);
+    }
+}
+
+test "while loop" {
+    const src = "i = 0\nwhile i < 10:\n   i = i + 1\n";
+    const toks = try Tokenizer.tokenize(testing.allocator, src);
+    defer testing.allocator.free(toks);
+
+    const expected = [_]TokenType{
+        .name,     .equal,   .number, .newline,
+        .kw_while, .name,    .less,   .number,
+        .colon,    .newline, .indent, .name,
+        .equal,    .name,    .plus,   .number,
+        .newline,  .dedent,  .eof,
     };
     try testing.expectEqual(expected.len, toks.len);
     for (expected, 0..) |e, i| {

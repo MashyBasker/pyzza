@@ -9,17 +9,18 @@ pub const TokenType = enum {
     // keywords
     kw_print,
     kw_for,
+    kw_while,
     kw_if,
     kw_elif,
     kw_else,
     kw_in,
 
     // operators
-    plus,
-    minus,
-    star,
-    slash,
-    percent,
+    plus, // +
+    minus, // -
+    star, // *
+    slash, // /
+    percent, // %
     equal, // =
     eq_eq, // ==
     not_eq, // !=
@@ -46,6 +47,7 @@ pub const TokenType = enum {
 pub const keywords = std.StaticStringMap(TokenType).initComptime(.{
     .{ "print", .kw_print },
     .{ "for", .kw_for },
+    .{ "while", .kw_while },
     .{ "if", .kw_if },
     .{ "elif", .kw_elif },
     .{ "else", .kw_else },
