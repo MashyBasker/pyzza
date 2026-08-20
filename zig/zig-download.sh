@@ -14,7 +14,7 @@ set -euo pipefail
 # Values below are taken from https://ziglang.org/download/index.json.
 # Bump ZIG_VERSION, ZIG_URL and ZIG_SHA256 together when upgrading.
 
-ZIG_VERSION="0.16.1"
+ZIG_VERSION="0.16.0"
 ZIG_TARBALL="zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
 ZIG_URL="https://ziglang.org/download/${ZIG_VERSION}/${ZIG_TARBALL}"
 ZIG_SHA256="43186959edc87d5c7a1be7b7d2a25efffd22ce5807c7af99067f86f99641bfdf"
