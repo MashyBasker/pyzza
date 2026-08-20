@@ -9,11 +9,26 @@ const Chunk = chunk_mod.Chunk;
 pub const CompileError = error{
     InvalidNumberLiteral,
     UnsupportedExpression,
+    BreakOutsideLoop,
+    ContinueOutsideLoop,
 } || std.mem.Allocator.Error;
+
+const LoopContext = struct {
+    continue_target: u32,
+    /// Whether `break` needs to pop a live iterator value off the stack
+    /// before jumping out (see `compileFor`: the iterator pushed by
+    /// `get_iter` stays on the stack for the loop's duration and is only
+    /// popped by `for_iter` on natural exhaustion -- `break` must pop it
+    /// itself since it skips that path). `while` loops carry no such
+    /// leftover state.
+    pops_on_break: bool,
+    break_jumps: std.ArrayList(usize) = .empty,
+};
 
 pub const Compiler = struct {
     arena: std.heap.ArenaAllocator,
     code: std.ArrayList(Instruction) = .empty,
+    loop_stack: std.ArrayList(LoopContext) = .empty,
 
     pub fn init(gpa: std.mem.Allocator) Compiler {
         return .{ .arena = std.heap.ArenaAllocator.init(gpa) };
@@ -65,6 +80,8 @@ pub const Compiler = struct {
             .if_stmt => |s| try self.compileIf(allocator, s),
             .for_stmt => |s| try self.compileFor(allocator, s),
             .while_stmt => |s| try self.compileWhile(allocator, s),
+            .break_stmt => try self.compileBreak(allocator),
+            .continue_stmt => try self.compileContinue(allocator),
         }
     }
 
@@ -97,11 +114,17 @@ pub const Compiler = struct {
         const loop_start: u32 = @intCast(self.code.items.len);
         const for_iter_idx = try self.emitJump(allocator, .{ .for_iter = 0 });
 
+        try self.loop_stack.append(allocator, .{ .continue_target = loop_start, .pops_on_break = true });
+
         try self.emit(allocator, .{ .store_name = s.target });
         for (s.body) |body_stmt| try self.compileStmt(allocator, body_stmt);
         try self.emit(allocator, .{ .jump = loop_start });
 
         self.patchJumpToHere(for_iter_idx);
+
+        var ctx = self.loop_stack.pop().?;
+        for (ctx.break_jumps.items) |idx| self.patchJumpToHere(idx);
+        ctx.break_jumps.deinit(allocator);
     }
 
     fn compileWhile(self: *Compiler, allocator: std.mem.Allocator, s: anytype) CompileError!void {
@@ -109,10 +132,30 @@ pub const Compiler = struct {
         try self.compileExpr(allocator, s.cond);
         const exit_idx = try self.emitJump(allocator, .{ .while_iter = 0 });
 
+        try self.loop_stack.append(allocator, .{ .continue_target = loop_start, .pops_on_break = false });
+
         for (s.body) |body_stmt| try self.compileStmt(allocator, body_stmt);
         try self.emit(allocator, .{ .jump = loop_start });
 
         self.patchJumpToHere(exit_idx);
+
+        var ctx = self.loop_stack.pop().?;
+        for (ctx.break_jumps.items) |idx| self.patchJumpToHere(idx);
+        ctx.break_jumps.deinit(allocator);
+    }
+
+    fn compileBreak(self: *Compiler, allocator: std.mem.Allocator) CompileError!void {
+        if (self.loop_stack.items.len == 0) return CompileError.BreakOutsideLoop;
+        const loop = &self.loop_stack.items[self.loop_stack.items.len - 1];
+        if (loop.pops_on_break) try self.emit(allocator, .pop);
+        const idx = try self.emitJump(allocator, .{ .jump = 0 });
+        try loop.break_jumps.append(allocator, idx);
+    }
+
+    fn compileContinue(self: *Compiler, allocator: std.mem.Allocator) CompileError!void {
+        if (self.loop_stack.items.len == 0) return CompileError.ContinueOutsideLoop;
+        const target = self.loop_stack.items[self.loop_stack.items.len - 1].continue_target;
+        try self.emit(allocator, .{ .jump = target });
     }
 
     fn compileExpr(self: *Compiler, allocator: std.mem.Allocator, expr: *ast.Expr) CompileError!void {
@@ -166,3 +209,38 @@ pub const Compiler = struct {
         };
     }
 };
+
+const testing = std.testing;
+const Tokenizer = @import("../lexer/tokenizer.zig").Tokenizer;
+const Parser = @import("../parser/parser.zig").Parser;
+
+fn compileSource(gpa: std.mem.Allocator, c: *Compiler, src: []const u8) !Chunk {
+    const toks = try Tokenizer.tokenize(gpa, src);
+    defer gpa.free(toks);
+    var p = Parser.init(gpa, toks);
+    defer p.deinit();
+    const program = try p.parseProgram();
+    return c.compile(program);
+}
+
+test "break outside a loop is a compile error" {
+    const gpa = testing.allocator;
+    var c = Compiler.init(gpa);
+    defer c.deinit();
+    try testing.expectError(CompileError.BreakOutsideLoop, compileSource(gpa, &c, "break\n"));
+}
+
+test "continue outside a loop is a compile error" {
+    const gpa = testing.allocator;
+    var c = Compiler.init(gpa);
+    defer c.deinit();
+    try testing.expectError(CompileError.ContinueOutsideLoop, compileSource(gpa, &c, "continue\n"));
+}
+
+test "break inside if inside a loop is fine" {
+    const gpa = testing.allocator;
+    var c = Compiler.init(gpa);
+    defer c.deinit();
+    const src = "while x < 10:\n    if x == 5:\n        break\n    x = x + 1\n";
+    _ = try compileSource(gpa, &c, src);
+}

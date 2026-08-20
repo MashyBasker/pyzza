@@ -18,7 +18,7 @@ zig build test                  # run inline unit tests
 - [x] Arithmetic and comparison expressions with correct precedence
 - [x] List literals
 - [x] String concatenation via `+`
-- [ ] `while` loops, `break`, `continue`
+- [x] `while` loops, `break`, `continue`
 - [ ] Boolean operators `and`, `or`, `not`
 - [ ] `True`, `False`, `None` literals
 - [ ] Function definitions (`def`) and calls — call expressions currently parse but the compiler rejects them
