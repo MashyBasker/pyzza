@@ -3,7 +3,7 @@
 # extracts it into ./zig/cache/, then exposes ./zig/zig as the binary.
 #
 # Usage:
-#   ./zig/download.sh
+#   ./zig/zig-download.sh
 #
 # Re-running this script is cheap: if the requested version is already
 # extracted in the cache, it skips the download entirely.
@@ -17,7 +17,7 @@ set -euo pipefail
 ZIG_VERSION="0.16.0"
 ZIG_TARBALL="zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
 ZIG_URL="https://ziglang.org/download/${ZIG_VERSION}/${ZIG_TARBALL}"
-ZIG_SHA256="43186959edc87d5c7a1be7b7d2a25efffd22ce5807c7af99067f86f99641bfdf"
+ZIG_SHA256="70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CACHE_DIR="${SCRIPT_DIR}/cache"
