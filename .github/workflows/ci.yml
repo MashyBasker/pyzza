@@ -23,7 +23,7 @@ jobs:
           path: ./zig/cache
           key: ${{ runner.os }}-${{ hashFiles('./zig/download.sh') }}
 
-      - run: ./zig/zig-download.sh
+      - run: chmod +x ./zig/zig-download.sh && ./zig/zig-download.sh
 
       - run: zig fmt --check .
 
